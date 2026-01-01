@@ -1,0 +1,40 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>AirDrop Web</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="step_role">
+  <h2>¿Qué quieres hacer?</h2>
+  <button onclick="chooseRole('send')">📤 Enviar</button>
+  <button onclick="chooseRole('receive')">📥 Recibir</button>
+</div>
+
+<div id="step_name" hidden>
+  <input id="deviceName" placeholder="Nombre del dispositivo">
+  <button onclick="enter()">Entrar</button>
+</div>
+
+<div id="step_send" hidden>
+  <input type="file" id="files" multiple>
+  <h3>Dispositivos disponibles</h3>
+  <div id="receivers"></div>
+  <div id="progress"></div>
+</div>
+
+<div id="step_receive" hidden>
+  <h3>Esperando archivos…</h3>
+  <div id="requests"></div>
+  <div id="progress"></div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="webrtc.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
