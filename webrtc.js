@@ -24,7 +24,7 @@ async function createPeerConnection(socket, id, isSender, files = []) {
     const dc = pc.createDataChannel("files");
     dataChannels[id] = dc;
 
-    // Espera hasta que el DataChannel esté abierto
+    // Espera a que el DataChannel esté abierto antes de enviar
     await new Promise(resolve => {
       dc.onopen = () => resolve();
     });
