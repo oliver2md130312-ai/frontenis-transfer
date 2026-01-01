@@ -3,14 +3,12 @@ const socket = io("https://transfer-airdrop-backend-production.up.railway.app");
 let role = "";
 let filesToSend = [];
 
-// Elegir rol
 function chooseRole(r) {
   role = r;
   step_role.hidden = true;
   step_name.hidden = false;
 }
 
-// Nombre del dispositivo
 function enter() {
   const name = deviceName.value || "Dispositivo";
   socket.emit("join", { name, role });
@@ -19,10 +17,8 @@ function enter() {
   else step_receive.hidden = false;
 }
 
-// Selección de archivos
 files.onchange = e => filesToSend = [...e.target.files];
 
-// Lista de receptores (solo emisores)
 socket.on("receivers", list => {
   if (role !== "send") return;
   receivers.innerHTML = "";
@@ -30,7 +26,6 @@ socket.on("receivers", list => {
     const div = document.createElement("div");
     div.textContent = r.name;
     div.onclick = () => {
-      // Crear conexión en el emisor
       createPeerConnection(socket, r.id, true, filesToSend);
       socket.emit("request-send", { to: r.id });
     };
@@ -38,25 +33,54 @@ socket.on("receivers", list => {
   });
 });
 
-// Receptor recibe solicitud
 socket.on("incoming-request", data => {
   const div = document.createElement("div");
   div.innerHTML = `${data.name} quiere enviarte archivos <button>Aceptar</button>`;
-  div.querySelector("button").onclick = () => {
-    // Crear PeerConnection en receptor
-    createPeerConnection(socket, data.from, false);
+
+  div.querySelector("button").onclick = async () => {
+    // 1️⃣ Crear PeerConnection en receptor y esperar a estar listo
+    await createPeerConnection(socket, data.from, false);
+
+    // 2️⃣ Emitir aceptación al emisor
     socket.emit("accept-request", { to: data.from });
+
+    // 3️⃣ Eliminar el cartel solo después de tener conexión
     div.remove();
   };
+
   requests.appendChild(div);
 });
 
-// Emisor recibe confirmación de aceptación
-socket.on("request-accepted", data => {
-  createPeerConnection(socket, data.from, true, filesToSend);
+socket.on("request-accepted", async data => {
+  // Crear PeerConnection en emisor
+  const pc = await createPeerConnection(socket, data.from, true, filesToSend);
+
+  // Esperar a que el DataChannel esté abierto antes de enviar
+  const dc = dataChannels[data.from];
+  if (dc.readyState === "open") {
+    sendFiles(dc, filesToSend);
+  } else {
+    dc.onopen = () => sendFiles(dc, filesToSend);
+  }
 });
 
-// Señales WebRTC
 socket.on("signal", data => {
   handleSignal(socket, data);
 });
+
+// Función de envío segura
+function sendFiles(dc, files) {
+  const b = bar("Enviando");
+  (async () => {
+    for (const f of files) {
+      dc.send(JSON.stringify({ size: f.size, name: f.name }));
+      let s = 0;
+      while (s < f.size) {
+        const buf = await f.slice(s, s + 16000).arrayBuffer();
+        dc.send(buf);
+        s += 16000;
+        b.style.width = (s / f.size * 100) + "%";
+      }
+    }
+  })();
+}

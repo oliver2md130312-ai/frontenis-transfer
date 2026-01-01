@@ -1,11 +1,8 @@
-// Configuración ICE
 const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-// Conexiones y canales
 const peerConnections = {};
 const dataChannels = {};
 
-// Crear barra de progreso
 function bar(label) {
   const d = document.createElement("div");
   d.innerHTML = `${label}<div class="bar"><span></span></div>`;
@@ -13,9 +10,8 @@ function bar(label) {
   return d.querySelector("span");
 }
 
-// Crear PeerConnection
-function createPeerConnection(socket, id, isSender, files = []) {
-  if (peerConnections[id]) return;
+async function createPeerConnection(socket, id, isSender, files = []) {
+  if (peerConnections[id]) return peerConnections[id];
 
   const pc = new RTCPeerConnection(rtcConfig);
   peerConnections[id] = pc;
@@ -29,10 +25,9 @@ function createPeerConnection(socket, id, isSender, files = []) {
     dataChannels[id] = dc;
     setupDataChannel(dc, files);
 
-    pc.createOffer().then(offer => {
-      pc.setLocalDescription(offer);
-      socket.emit("signal", { to: id, offer, from: socket.id });
-    });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit("signal", { to: id, offer, from: socket.id });
   } else {
     pc.ondatachannel = e => {
       const dc = e.channel;
@@ -44,7 +39,6 @@ function createPeerConnection(socket, id, isSender, files = []) {
   return pc;
 }
 
-// Configurar canal para enviar
 function setupDataChannel(dc, files) {
   const b = bar("Enviando");
   dc.onopen = async () => {
@@ -61,7 +55,6 @@ function setupDataChannel(dc, files) {
   };
 }
 
-// Recibir archivos
 function receiveDataChannel(dc) {
   const b = bar("Recibiendo");
   let size = 0, rec = 0, data = [];
@@ -84,7 +77,6 @@ function receiveDataChannel(dc) {
   };
 }
 
-// Procesar señales
 function handleSignal(socket, data) {
   const pc = peerConnections[data.from];
   if (!pc) return;
@@ -100,7 +92,6 @@ function handleSignal(socket, data) {
   if (data.candidate) pc.addIceCandidate(new RTCIceCandidate(data.candidate));
 }
 
-// Exponer funciones globales
 window.createPeerConnection = createPeerConnection;
 window.setupDataChannel = setupDataChannel;
 window.receiveDataChannel = receiveDataChannel;
