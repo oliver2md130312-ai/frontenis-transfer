@@ -23,6 +23,12 @@ async function createPeerConnection(socket, id, isSender, files = []) {
   if (isSender) {
     const dc = pc.createDataChannel("files");
     dataChannels[id] = dc;
+
+    // Espera hasta que el DataChannel esté abierto
+    await new Promise(resolve => {
+      dc.onopen = () => resolve();
+    });
+
     setupDataChannel(dc, files);
 
     const offer = await pc.createOffer();
@@ -41,7 +47,7 @@ async function createPeerConnection(socket, id, isSender, files = []) {
 
 function setupDataChannel(dc, files) {
   const b = bar("Enviando");
-  dc.onopen = async () => {
+  (async () => {
     for (const f of files) {
       dc.send(JSON.stringify({ size: f.size, name: f.name }));
       let s = 0;
@@ -52,7 +58,7 @@ function setupDataChannel(dc, files) {
         b.style.width = (s / f.size * 100) + "%";
       }
     }
-  };
+  })();
 }
 
 function receiveDataChannel(dc) {

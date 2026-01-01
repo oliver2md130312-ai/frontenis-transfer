@@ -25,8 +25,8 @@ socket.on("receivers", list => {
   list.forEach(r => {
     const div = document.createElement("div");
     div.textContent = r.name;
-    div.onclick = () => {
-      createPeerConnection(socket, r.id, true, filesToSend);
+    div.onclick = async () => {
+      await createPeerConnection(socket, r.id, true, filesToSend);
       socket.emit("request-send", { to: r.id });
     };
     receivers.appendChild(div);
@@ -38,13 +38,13 @@ socket.on("incoming-request", data => {
   div.innerHTML = `${data.name} quiere enviarte archivos <button>Aceptar</button>`;
 
   div.querySelector("button").onclick = async () => {
-    // 1️⃣ Crear PeerConnection en receptor y esperar a estar listo
+    // Crear PeerConnection y esperar a que esté lista antes de aceptar
     await createPeerConnection(socket, data.from, false);
 
-    // 2️⃣ Emitir aceptación al emisor
+    // Emitir aceptación al emisor
     socket.emit("accept-request", { to: data.from });
 
-    // 3️⃣ Eliminar el cartel solo después de tener conexión
+    // Solo ahora eliminar el cartel
     div.remove();
   };
 
@@ -52,10 +52,9 @@ socket.on("incoming-request", data => {
 });
 
 socket.on("request-accepted", async data => {
-  // Crear PeerConnection en emisor
   const pc = await createPeerConnection(socket, data.from, true, filesToSend);
 
-  // Esperar a que el DataChannel esté abierto antes de enviar
+  // Esperar a que DataChannel esté abierto antes de enviar
   const dc = dataChannels[data.from];
   if (dc.readyState === "open") {
     sendFiles(dc, filesToSend);
@@ -68,7 +67,6 @@ socket.on("signal", data => {
   handleSignal(socket, data);
 });
 
-// Función de envío segura
 function sendFiles(dc, files) {
   const b = bar("Enviando");
   (async () => {
